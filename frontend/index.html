@@ -91,8 +91,11 @@
         if (window['WebSocket']) {
           // Connect to websocket
           conn = new WebSocket('ws://' + document.location.host + '/ws');
-          console.log('supports websockets');
+          // Add a listener to the onmessage event
           console.log(conn);
+          conn.onmessage = function (evt) {
+            console.log(evt);
+          };
         } else {
           alert('Not supporting websockets');
         }
