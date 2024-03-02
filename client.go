@@ -29,13 +29,9 @@ func NewClient(conn *websocket.Conn, manager *Manager) *Client {
 	}
 }
 
-// readMessages will start the client to read messages and handle them
-// appropriatly.
-// This is suppose to be ran as a goroutine
 func (c *Client) readMessages() {
 	defer func() {
-		// Graceful Close the Connection once this
-		// function is done
+
 		c.manager.removeClient(c)
 	}()
 	// Loop Forever

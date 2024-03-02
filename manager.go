@@ -45,11 +45,10 @@ func (m *Manager) serveWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create New Client
 	client := NewClient(conn, m)
-	// Add the newly created client to the manager
+
 	m.addClient(client)
-	// Start the read / write processes
+
 	go client.readMessages()
 	go client.writeMessages()
 }
