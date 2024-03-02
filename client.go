@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 
 	"github.com/gorilla/websocket"
@@ -17,7 +18,7 @@ type Client struct {
 	// manager is the manager used to manage the client
 	manager *Manager
 	// egress is used to avoid concurrent writes on the WebSocket
-	egress chan []byte
+	egress chan Event
 }
 
 // NewClient is used to initialize a new Client with all required values initialized
@@ -25,20 +26,24 @@ func NewClient(conn *websocket.Conn, manager *Manager) *Client {
 	return &Client{
 		connection: conn,
 		manager:    manager,
-		egress:     make(chan []byte),
+		egress:     make(chan Event),
 	}
 }
 
+// readMessages will start the client to read messages and handle them
+// appropriatly.
+// This is suppose to be ran as a goroutine
 func (c *Client) readMessages() {
 	defer func() {
-
+		// Graceful Close the Connection once this
+		// function is done
 		c.manager.removeClient(c)
 	}()
 	// Loop Forever
 	for {
 		// ReadMessage is used to read the next message in queue
 		// in the connection
-		messageType, payload, err := c.connection.ReadMessage()
+		_, payload, err := c.connection.ReadMessage()
 
 		if err != nil {
 			// If Connection is closed, we will Recieve an error here
@@ -48,13 +53,15 @@ func (c *Client) readMessages() {
 			}
 			break // Break the loop to close conn & Cleanup
 		}
-		log.Println("MessageType: ", messageType)
-		log.Println("Payload: ", string(payload))
-
-		// Hack to test that WriteMessages works as intended
-		// Will be replaced soon
-		for wsclient := range c.manager.clients {
-			wsclient.egress <- payload
+		// Marshal incoming data into a Event struct
+		var request Event
+		if err := json.Unmarshal(payload, &request); err != nil {
+			log.Printf("error marshalling message: %v", err)
+			break // Breaking the connection here might be harsh xD
+		}
+		// Route the Event
+		if err := c.manager.routeEvent(request, c); err != nil {
+			log.Println("Error handeling Message: ", err)
 		}
 	}
 }
@@ -79,8 +86,13 @@ func (c *Client) writeMessages() {
 				// Return to close the goroutine
 				return
 			}
+			data, err := json.Marshal(message)
+			if err != nil {
+				log.Println(err)
+				return // closes the connection, should we really
+			}
 			// Write a Regular text message to the connection
-			if err := c.connection.WriteMessage(websocket.TextMessage, message); err != nil {
+			if err := c.connection.WriteMessage(websocket.TextMessage, data); err != nil {
 				log.Println(err)
 			}
 			log.Println("sent message")
