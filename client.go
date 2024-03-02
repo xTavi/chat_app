@@ -36,9 +36,17 @@ func NewClient(conn *websocket.Conn, manager *Manager) *Client {
 
 func (c *Client) readMessages() {
 	defer func() {
-
 		c.manager.removeClient(c)
 	}()
+
+	// Configure Wait time for Pong response, use Current time + pongWait
+	// This has to be done here to set the first initial timer.
+	if err := c.connection.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
+		log.Println(err)
+		return
+	}
+	// Configure how to handle Pong responses
+	c.connection.SetPongHandler(c.pongHandler)
 
 	for {
 
@@ -64,9 +72,15 @@ func (c *Client) readMessages() {
 	}
 }
 
-func (c *Client) writeMessages() {
-	defer func() {
+func (c *Client) pongHandler(pongMsg string) error {
+	log.Println("pong")
+	return c.connection.SetReadDeadline(time.Now().Add(pongWait))
+}
 
+func (c *Client) writeMessages() {
+	ticker := time.NewTicker(pingInterval)
+
+	defer func() {
 		c.manager.removeClient(c)
 	}()
 
@@ -93,6 +107,14 @@ func (c *Client) writeMessages() {
 				log.Println(err)
 			}
 			log.Println("sent message")
+
+		case <-ticker.C:
+			log.Println("ping")
+			// Send the Ping
+			if err := c.connection.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
+				log.Println("writemsg: ", err)
+				return // return to break this goroutine triggeing cleanup
+			}
 		}
 
 	}
