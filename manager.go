@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -45,13 +47,16 @@ type Manager struct {
 	sync.RWMutex
 	// handlers are functions that are used to handle Events
 	handlers map[string]EventHandler
+
+	otps RetentionMap
 }
 
 // NewManager is used to initalize all the values inside the manager
-func NewManager() *Manager {
+func NewManager(ctx context.Context) *Manager {
 	m := &Manager{
 		clients:  make(ClientList),
 		handlers: make(map[string]EventHandler),
+		otps:     NewRetentionMap(ctx, 5*time.Minute),
 	}
 	m.setupEventHandlers()
 	return m
@@ -122,3 +127,5 @@ func (m *Manager) removeClient(client *Client) {
 		delete(m.clients, client)
 	}
 }
+
+func loginHandler()
