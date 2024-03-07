@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -88,6 +89,20 @@ func (m *Manager) routeEvent(event Event, c *Client) error {
 // serveWS is a HTTP Handler that the has the Manager that allows connections
 func (m *Manager) serveWS(w http.ResponseWriter, r *http.Request) {
 
+	// Grab the OTP in the Get param
+	otp := r.URL.Query().Get("otp")
+	if otp == "" {
+		// Tell the user its not authorized
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	// Verify OTP is existing
+	if !m.otps.VerifyOTP(otp) {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	log.Println("New connection")
 	// Begin by upgrading the HTTP request
 	conn, err := websocketUpgrader.Upgrade(w, r, nil)
@@ -96,8 +111,9 @@ func (m *Manager) serveWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Create New Client
 	client := NewClient(conn, m)
-
+	// Add the newly created client to the manager
 	m.addClient(client)
 
 	go client.readMessages()
@@ -128,4 +144,45 @@ func (m *Manager) removeClient(client *Client) {
 	}
 }
 
-func loginHandler()
+func (m *Manager) loginHandler(w http.ResponseWriter, r *http.Request) {
+
+	type userLoginRequest struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+
+	var req userLoginRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Authenticate user / Verify Access token, what ever auth method you use
+	if req.Username == "tavi" && req.Password == "123" {
+		// format to return otp in to the frontend
+		type response struct {
+			OTP string `json:"otp"`
+		}
+
+		// add a new OTP
+		otp := m.otps.NewOTP()
+
+		resp := response{
+			OTP: otp.Key,
+		}
+
+		data, err := json.Marshal(resp)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		// Return a response to the Authenticated user with the OTP
+		w.WriteHeader(http.StatusOK)
+		w.Write(data)
+		return
+	}
+
+	// Failure to auth
+	w.WriteHeader(http.StatusUnauthorized)
+}
