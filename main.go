@@ -17,7 +17,10 @@ func main() {
 	setupAPI(ctx)
 
 	// Serve on port :8080, fudge yeah hardcoded port
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	err := http.ListenAndServeTLS(":8080", "server.crt", "server.key", nil)
+	if err != nil {
+		log.Fatal("ListenAndServe: ", err)
+	}
 
 }
 
@@ -28,7 +31,7 @@ func setupAPI(ctx context.Context) {
 
 	// Serve the ./frontend directory at Route /
 	http.Handle("/", http.FileServer(http.Dir("./frontend")))
-	http.HandleFunc("/ws", manager.serveWS)
+	http.HandleFunc("/wss", manager.serveWS)
 	http.HandleFunc("/login", manager.loginHandler)
 	http.HandleFunc("/debug", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, len(manager.clients))

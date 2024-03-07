@@ -21,3 +21,6 @@ tmp/*
 
 # Go workspace file
 go.work
+
+server.crt
+server.key
