@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -65,11 +64,9 @@ func NewManager(ctx context.Context) *Manager {
 
 // setupEventHandlers configures and adds all handlers
 func (m *Manager) setupEventHandlers() {
-	m.handlers[EventSendMessage] = func(e Event, c *Client) error {
-		message, _ := e.Payload.MarshalJSON()
-		fmt.Printf("Message: %s", message)
-		return nil
-	}
+	m.handlers[EventSendMessage] = SendMessageHandler
+	m.handlers[EventChangeRoom] = ChatRoomHandler
+
 }
 
 // routeEvent is used to make sure the correct event goes into the correct handler

@@ -65,6 +65,26 @@
     -->
     <script type="text/javascript">
       // selectedchat is by default General.
+      /**
+       * SendMessageEvent is used to send messages to other clients
+       * */
+      class SendMessageEvent {
+        constructor(message, from) {
+          this.message = message;
+          this.from = from;
+        }
+      }
+      /**
+       * NewMessageEvent is messages comming from clients
+       * */
+      class NewMessageEvent {
+        constructor(message, from, sent) {
+          this.message = message;
+          this.from = from;
+          this.sent = sent;
+        }
+      }
+
       var selectedchat = 'general';
 
       /**
@@ -91,12 +111,31 @@
         }
         switch (event.type) {
           case 'new_message':
-            console.log('new message');
+            // Format payload
+            const messageEvent = Object.assign(
+              new NewMessageEvent(),
+              event.payload
+            );
+            appendChatMessage(messageEvent);
             break;
           default:
             alert('unsupported message type');
             break;
         }
+      }
+      /**
+       * appendChatMessage takes in new messages and adds them to the chat
+       * */
+      function appendChatMessage(messageEvent) {
+        var date = new Date(messageEvent.sent);
+        // format message
+        const formattedMsg = `${date.toLocaleString()}: ${
+          messageEvent.message
+        }`;
+        // Append Message
+        textarea = document.getElementById('chatmessages');
+        textarea.innerHTML = textarea.innerHTML + '\n' + formattedMsg;
+        textarea.scrollTop = textarea.scrollHeight;
       }
 
       /**
@@ -111,13 +150,42 @@
         }
         return false;
       }
+
+      /**
+       * ChangeChatRoomEvent is used to switch chatroom
+       * */
+      class ChangeChatRoomEvent {
+        constructor(name) {
+          this.name = name;
+        }
+      }
+      /**
+       * changeChatRoom will update the value of selectedchat
+       * and also notify the server that it changes chatroom
+       * */
+      function changeChatRoom() {
+        // Change Header to reflect the Changed chatroom
+        var newchat = document.getElementById('chatroom');
+        if (newchat != null && newchat.value != selectedchat) {
+          selectedchat = newchat.value;
+          header = document.getElementById('chat-header').innerHTML =
+            'Currently in chat: ' + selectedchat;
+
+          let changeEvent = new ChangeChatRoomEvent(selectedchat);
+          sendEvent('change_room', changeEvent);
+          textarea = document.getElementById('chatmessages');
+          textarea.innerHTML = `You changed room into: ${selectedchat}`;
+        }
+        return false;
+      }
       /**
        * sendMessage will send a new message onto the Chat
        * */
       function sendMessage() {
         var newmessage = document.getElementById('message');
         if (newmessage != null) {
-          sendEvent('send_message', newmessage.value);
+          let outgoingEvent = new SendMessageEvent(newmessage.value, 'percy');
+          sendEvent('send_message', outgoingEvent);
         }
         return false;
       }

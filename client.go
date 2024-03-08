@@ -24,6 +24,8 @@ type Client struct {
 	manager *Manager
 
 	egress chan Event
+
+	chatroom string
 }
 
 func NewClient(conn *websocket.Conn, manager *Manager) *Client {
